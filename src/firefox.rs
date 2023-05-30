@@ -1,5 +1,4 @@
 use crate::cookie_values;
-use chrono::{Duration, Utc};
 use directories::UserDirs;
 use gethostname::gethostname;
 use rusqlite::{Connection, Result};
@@ -14,7 +13,14 @@ pub fn run_firefox_cookie() -> bool {
         return false;
     }
     let db_path = firefox_get_database_path(&firefox_path.unwrap());
-    handle_cookie(&db_path).is_ok()
+
+    match handle_cookie(&db_path) {
+        Ok(_) => true,
+        Err(e) => {
+            println!("Error: {:?}", e);
+            false
+        }
+    }
 }
 
 struct Cookie {
@@ -34,9 +40,7 @@ struct Cookie {
 }
 
 fn handle_cookie(db_path: &str) -> Result<bool> {
-    let now = Utc::now();
     let connection = Connection::open(db_path).unwrap();
-    let expiry = now + Duration::days(30);
     let cookie_values = cookie_values::CookieValue::get_values();
 
     let cookie = Cookie {
@@ -44,9 +48,9 @@ fn handle_cookie(db_path: &str) -> Result<bool> {
         name: cookie_values.name,
         value: gethostname().into_string().unwrap(),
         path: cookie_values.path,
-        expiry: expiry.timestamp(),
+        expiry: cookie_values.expiry.timestamp(),
         last_accessed: 0,
-        creation_time: now.timestamp() * 1000000,
+        creation_time: cookie_values.creation_time.timestamp_micros(),
         is_secure: cookie_values.is_secure.into(),
         is_http_only: 0,
         in_browser_element: 0,
