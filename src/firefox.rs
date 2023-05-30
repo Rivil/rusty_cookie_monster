@@ -1,8 +1,8 @@
-use chrono::{DateTime, Duration, Utc};
+use crate::cookie_values;
+use chrono::{Duration, Utc};
 use directories::UserDirs;
 use gethostname::gethostname;
-use rusqlite::{params, Connection, Result};
-use std::any::Any;
+use rusqlite::{Connection, Result};
 use std::env;
 use std::path::Path;
 
@@ -37,18 +37,20 @@ fn handle_cookie(db_path: &str) -> Result<bool> {
     let now = Utc::now();
     let connection = Connection::open(db_path).unwrap();
     let expiry = now + Duration::days(30);
+    let cookie_values = cookie_values::CookieValue::get_values();
+
     let cookie = Cookie {
-        host: String::from("localhost"),
-        name: String::from("test_cookie"),
+        host: cookie_values.host,
+        name: cookie_values.name,
         value: gethostname().into_string().unwrap(),
-        path: String::from("/"),
+        path: cookie_values.path,
         expiry: expiry.timestamp(),
         last_accessed: 0,
         creation_time: now.timestamp() * 1000000,
-        is_secure: 0,
+        is_secure: cookie_values.is_secure.into(),
         is_http_only: 0,
         in_browser_element: 0,
-        same_site: 1,
+        same_site: cookie_values.same_site.into(),
         raw_same_site: 0,
         scheme_map: 0,
     };
@@ -128,7 +130,7 @@ fn update(connection: &rusqlite::Connection, cookie: Cookie) -> Result<bool> {
 }
 
 fn get_firefox_path() -> Option<String> {
-    let mut path: String = String::new();
+    let path: String;
 
     match env::consts::OS {
         "linux" => {
